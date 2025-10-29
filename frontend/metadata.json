@@ -1,0 +1,5 @@
+{
+  "name": "JustiFY - AI Legal Advisor",
+  "description": "An AI-powered web application that provides instant legal advice and helps users understand their rights. Features include issue description, a law library, and step-by-step guides for various legal situations.",
+  "requestFramePermissions": []
+}
