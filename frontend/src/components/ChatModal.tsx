@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import type { Message } from '../types'; // This will now import all our new types
 import { SendIcon, CloseIcon, ScalesIcon } from './icons';
-import AIResponseCard from './AIResponseCard'; // Import the new component
+import LawInfoModal from './LawInfoModal';
 
 interface ChatModalProps {
     isOpen: boolean;
@@ -14,6 +14,44 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
     const [userInput, setUserInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const chatContainerRef = useRef<HTMLDivElement>(null);
+
+    // Law details modal state (shared for all AI messages)
+    const [isLawModalOpen, setIsLawModalOpen] = useState(false);
+    const [lawDetail, setLawDetail] = useState<any | null>(null);
+    const [lawLoading, setLawLoading] = useState(false);
+    const [lawError, setLawError] = useState<string | null>(null);
+
+    const openLawDetail = async (sec: Message['relevantSections'][number]) => {
+        setIsLawModalOpen(true);
+        setLawLoading(true);
+        setLawError(null);
+        setLawDetail(null);
+
+        try {
+            const params = new URLSearchParams();
+            if (sec.law_code) params.append('law_code', sec.law_code);
+            if (sec.act_name) params.append('act_name', sec.act_name);
+            params.append('section_number', sec.section_number);
+
+            const res = await fetch(`/api/laws/lookup?${params.toString()}`);
+            if (!res.ok) {
+                const txt = await res.text();
+                throw new Error(txt || `Failed to load law (${res.status})`);
+            }
+            const data = await res.json();
+            setLawDetail(data);
+        } catch (e: any) {
+            setLawError(e?.message || 'Failed to load law details');
+        } finally {
+            setLawLoading(false);
+        }
+    };
+
+    const closeLawDetail = () => {
+        setIsLawModalOpen(false);
+        setLawDetail(null);
+        setLawError(null);
+    };
 
     useEffect(() => {
         if (chatContainerRef.current) {
@@ -88,12 +126,47 @@ const ChatModal: React.FC<ChatModalProps> = ({ isOpen, onClose }) => {
 
                             {/* UPDATED RENDER LOGIC */}
                             {msg.sender === 'ai' && msg.relevantSections ? (
-                                // If it's an AI message with structured data, use the new card
-                                <AIResponseCard 
-                                    legalInformation={msg.legalInformation!}
-                                    relevantSections={msg.relevantSections}
-                                    nextSteps={msg.nextSteps!}
-                                />
+                                // Inline AI response: summary + cards + next steps
+                                <div className="bg-gray-100 p-4 rounded-lg max-w-xl text-gray-800 w-full">
+                                    {/* Main Legal Information Summary */}
+                                    <p className="mb-4 whitespace-pre-wrap">{msg.legalInformation}</p>
+
+                                    {/* Relevant Sections as cards */}
+                                    <div className="space-y-3 mb-4">
+                                        <h3 className="font-bold text-lg flex items-center">Relevant Sections</h3>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {msg.relevantSections.map((sec, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    onClick={() => openLawDetail(sec)}
+                                                    className="text-left bg-white p-3 rounded-md shadow-sm border hover:shadow-md transition-shadow"
+                                                >
+                                                    <div className="text-xs text-gray-500 mb-1">
+                                                        {(sec.act_name || 'Act')} • {(sec.law_code ? `${sec.law_code} ` : '')}{sec.section_number}
+                                                    </div>
+                                                    <div className="font-semibold text-blue-700">
+                                                        {`Section ${sec.section_number}: ${sec.section_title}`}
+                                                    </div>
+                                                    <div className="mt-2 text-sm text-gray-700 line-clamp-3">{sec.simple_explanation}</div>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Next Steps */}
+                                    {msg.nextSteps && (
+                                        <div className="space-y-3">
+                                            <h3 className="font-bold text-lg">Suggested Next Steps</h3>
+                                            <p className="bg-blue-50 border-l-4 border-blue-400 text-blue-800 p-3 rounded-r-lg text-sm">{msg.nextSteps.suggestions}</p>
+                                            <div className="bg-red-50 border-l-4 border-red-400 text-red-800 p-3 rounded-r-lg text-xs">
+                                                <p><strong className="font-semibold">Disclaimer:</strong> {msg.nextSteps.disclaimer}</p>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Law detail modal */}
+                                    <LawInfoModal isOpen={isLawModalOpen} onClose={closeLawDetail} law={lawDetail} loading={lawLoading} error={lawError} />
+                                </div>
                             ) : (
                                 // Otherwise, use the simple message bubble
                                 <div className={`max-w-md p-3 rounded-lg ${msg.sender === 'user' ? 'bg-blue-500 text-white rounded-br-none' : 'bg-gray-100 text-gray-800 rounded-bl-none'}`}>

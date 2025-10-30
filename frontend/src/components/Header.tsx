@@ -3,7 +3,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext'; // Import the useAuth hook
-import { ScalesIcon, PhoneIcon, BookmarkIcon } from './icons'; // Assuming icons.tsx is in the same folder
+import { ScalesIcon, PhoneIcon, BookmarkIcon, ArrowLeftIcon } from './icons'; // Assuming icons.tsx is in the same folder
 
 const Header: React.FC = () => {
     // Get authentication status (user object) and logout function from the context
@@ -19,6 +19,15 @@ const Header: React.FC = () => {
         <header className="bg-blue-600 shadow-md sticky top-0 z-50">
             <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="flex items-center justify-between h-16">
+                    {/* Back button */}
+                    <button 
+                        onClick={() => navigate(-1)}
+                        className="p-2 rounded-full text-white hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-300"
+                        title="Go back"
+                    >
+                        <ArrowLeftIcon className="h-6 w-6" />
+                    </button>
+
                     {/* Logo/Brand link */}
                     <Link to="/" className="flex items-center cursor-pointer hover:opacity-90">
                         <ScalesIcon className="h-8 w-8 text-white" />

@@ -44,8 +44,8 @@ const DescribePage: React.FC = () => {
         }
 
         try {
-            // --- FIX: Use the full API URL ---
-            const response = await fetch(`${import.meta.env.VITE_API_URL}/api/laws/describe`, {
+            // Call the RAG endpoint
+            const response = await fetch('/api/rag-laws/laws', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -54,7 +54,6 @@ const DescribePage: React.FC = () => {
                 },
                 body: JSON.stringify({ userProblem: issue }), // Send the user's input
             });
-            // --- END FIX ---
 
             const data = await response.json(); // Parse the JSON response
 

@@ -56,13 +56,12 @@ const LoginPage: React.FC = () => {
         }
 
         try {
-            // --- FIX: Use the full API URL ---
-            const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/auth/login`, {
+            // Call the backend login API
+            const response = await fetch('/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData), // Send email and password
             });
-            // --- END FIX ---
 
             const data = await response.json(); // Parse the JSON response
 
@@ -75,9 +74,17 @@ const LoginPage: React.FC = () => {
             // Call the login function from AuthContext with the received token and user data
             if (data.token && data.user) {
                 login(data.token, data.user);
-                // Redirect the user to the page they were trying to access, or the homepage.
-                // navigate(from, { replace: true }); // 'replace' prevents going back to login page
-                navigate("/")
+
+                // Check user role and redirect accordingly
+                // Backend returns role as 'admin', 'user', or 'guest'
+                const userRole = data.user.role?.toLowerCase();
+
+                // Admin -> admin dashboard; user/guest -> homepage
+                if (userRole === 'admin') {
+                    navigate('/admin/dashboard', { replace: true });
+                } else {
+                    navigate('/', { replace: true });
+                }
             } else {
                 // Handle unexpected successful response without token/user
                 throw new Error("Login response was successful but missing data.");
@@ -127,7 +134,8 @@ const LoginPage: React.FC = () => {
             }
 
             login(data.token, data.user);
-            navigate(from, { replace: true });
+            // Guest users always go to homepage
+            navigate('/', { replace: true });
 
         } catch (err: any) {
             setError(err.message || 'Failed to create guest session');

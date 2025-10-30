@@ -3,7 +3,7 @@ const Law = require('../models/Law');
 // GET all laws (with optional filters)
 const getAllLaws = async (req, res) => {
   try {
-    const { category, law_code, search } = req.query;
+    const { category, law_code, search, page, limit } = req.query;
     
     let filter = {};
     
@@ -22,8 +22,31 @@ const getAllLaws = async (req, res) => {
       filter.$text = { $search: search };
     }
     
-    const laws = await Law.find(filter).sort({ law_code: 1, section_number: 1 });
-    res.json(laws);
+    // Pagination
+    const pageNum = parseInt(page) || 1;
+    const limitNum = parseInt(limit) || 0; // 0 means no limit (fetch all)
+    const skip = limitNum > 0 ? (pageNum - 1) * limitNum : 0;
+    
+    const [laws, total] = await Promise.all([
+      Law.find(filter)
+        .sort({ law_code: 1, section_number: 1 })
+        .skip(skip)
+        .limit(limitNum),
+      Law.countDocuments(filter)
+    ]);
+    
+    // If pagination is requested, return with metadata
+    if (limitNum > 0) {
+      res.json({
+        laws,
+        total,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum)
+      });
+    } else {
+      // Return simple array for backward compatibility
+      res.json(laws);
+    }
   } catch (err) {
     console.error('Error fetching laws:', err);
     res.status(500).json({ message: 'Failed to fetch laws' });
@@ -113,6 +136,31 @@ const deleteLaw = async (req, res) => {
   }
 };
 
+// LOOKUP by identifiers (law_code+section_number) or (act_name+section_number)
+const lookupLaw = async (req, res) => {
+  try {
+    const { law_code, act_name, section_number } = req.query;
+
+    if (!section_number) {
+      return res.status(400).json({ message: 'section_number is required' });
+    }
+
+    const filter = { section_number };
+    if (law_code) filter.law_code = law_code;
+    if (act_name) filter.act_name = act_name;
+
+    // Prefer exact match with both identifiers if provided
+    const law = await Law.findOne(filter);
+    if (!law) {
+      return res.status(404).json({ message: 'Law not found for given identifiers' });
+    }
+    res.json(law);
+  } catch (err) {
+    console.error('Error looking up law:', err);
+    res.status(500).json({ message: 'Failed to lookup law' });
+  }
+};
+
 // GET all unique categories
 const getCategories = async (req, res) => {
   try {
@@ -143,5 +191,6 @@ module.exports = {
   updateLaw, 
   deleteLaw,
   getCategories,
-  getActsByCategory
+  getActsByCategory,
+  lookupLaw
 };
