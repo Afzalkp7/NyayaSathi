@@ -17,7 +17,7 @@ export interface RelevantSection {
   section_number: string;
   section_title: string;       // Matches 'title' from Law model / AI schema
   simple_explanation: string;  // Matches 'simplified_description' / AI schema
-  legal_text: string;          // Matches 'description' / AI schema
+  legal_text?: string;          // Optional: present in some responses, else fetched via lookup
   punishment: string;
   // Optional fields if your backend includes them:
   // chapter?: string;

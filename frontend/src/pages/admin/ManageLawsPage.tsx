@@ -39,12 +39,19 @@ const ManageLawsPage: React.FC = () => {
     const lawsPerPage = 25;
 
     const fetchLaws = async (page: number = 1) => {
+        // If no category is selected, don't fetch any laws; prompt user instead
+        if (!category) {
+            setLaws([]);
+            setTotalLaws(0);
+            setCurrentPage(1);
+            return;
+        }
         try {
             setIsFiltering(true);
             setError(null);
             const params = new URLSearchParams();
             if (search.trim()) params.append('search', search.trim());
-            if (category) params.append('category', category);
+            params.append('category', category);
             params.append('page', page.toString());
             params.append('limit', lawsPerPage.toString());
             const qs = params.toString();
@@ -67,26 +74,22 @@ const ManageLawsPage: React.FC = () => {
         }
     };
 
-    // Initial load for laws and categories
+    // Initial load for categories only (do not load all laws by default)
     React.useEffect(() => {
         let isMounted = true;
         (async () => {
             try {
                 setLoading(true);
                 setError(null);
-                // Fetch laws (all)
-                const [lawsRes, catsRes] = await Promise.all([
-                    fetch('/api/laws', { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
-                    fetch('/api/laws/categories')
-                ]);
-
-                if (!lawsRes.ok) throw new Error(await lawsRes.text());
+                // Fetch categories only on initial load
+                const catsRes = await fetch('/api/laws/categories');
                 if (!catsRes.ok) throw new Error(await catsRes.text());
-
-                const [lawsJson, catsJson] = await Promise.all([lawsRes.json(), catsRes.json()]);
+                const catsJson = await catsRes.json();
                 if (isMounted) {
-                    setLaws(Array.isArray(lawsJson) ? lawsJson : []);
                     setCategories(Array.isArray(catsJson) ? catsJson : []);
+                    // Do not load laws until a category is selected
+                    setLaws([]);
+                    setTotalLaws(0);
                 }
             } catch (e: any) {
                 if (isMounted) setError(e?.message || 'Failed to load data');
@@ -114,10 +117,7 @@ const ManageLawsPage: React.FC = () => {
         setIsDetailModalOpen(true);
     };
 
-    const handleApplyFilters = () => {
-        setCurrentPage(1);
-        fetchLaws(1);
-    };
+    // Auto-fetch when category/search change will be handled via useEffect below
 
     const handleNextPage = () => {
         const nextPage = currentPage + 1;
@@ -133,6 +133,18 @@ const ManageLawsPage: React.FC = () => {
     const hasNextPage = currentPage < totalPages;
     const hasPrevPage = currentPage > 1;
 
+    // Auto-fetch when category or search changes (debounced) if a category is selected
+    React.useEffect(() => {
+        if (!category) return;
+        const t = setTimeout(() => {
+            // always reset to page 1 on filter changes
+            setCurrentPage(1);
+            fetchLaws(1);
+        }, 300);
+        return () => clearTimeout(t);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [category, search]);
+
     return (
         <div className="space-y-4">
             <h2 className="text-xl font-semibold text-gray-800">Manage Laws</h2>
@@ -141,49 +153,66 @@ const ManageLawsPage: React.FC = () => {
                     <div className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded p-3">{error}</div>
                 )}
 
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <input
-                        className="flex-1 border rounded-md px-3 py-2"
-                        placeholder="Search by Title, Section Number, or Keywords"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                    />
-                    <select
-                        className="border rounded-md px-3 py-2 text-gray-700"
-                        value={category}
-                        onChange={e => setCategory(e.target.value)}
-                    >
-                        <option value="">All Categories</option>
-                        {categories.map(c => (
-                            <option key={c} value={c}>{c}</option>
-                        ))}
-                    </select>
-                    <button
-                        onClick={handleApplyFilters}
-                        disabled={isFiltering}
-                        className="px-4 py-2 rounded-md bg-blue-600 text-white disabled:bg-gray-400 disabled:cursor-not-allowed"
-                    >
-                        {isFiltering ? 'Applying…' : 'Apply'}
-                    </button>
+                <div className="space-y-3">
+                    <div className="flex gap-3 items-center">
+                        <input
+                            className="flex-1 border rounded-md px-3 py-2"
+                            placeholder="Search by Title, Section Number, or Keywords"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                        <button 
+                            onClick={() => setIsModalOpen(true)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 whitespace-nowrap"
+                        >
+                            Add New Law
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-2 overflow-x-auto py-1">
+                        {categories.map((c) => {
+                            const active = category === c;
+                            return (
+                                <button
+                                    key={c}
+                                    type="button"
+                                    onClick={() => {
+                                        if (c !== category) {
+                                            setCategory(c);
+                                            setCurrentPage(1);
+                                        }
+                                    }}
+                                    aria-pressed={active}
+                                    className={[
+                                        'whitespace-nowrap px-3 py-1.5 rounded-full text-sm border transition-colors',
+                                        active
+                                            ? 'bg-blue-600 text-white border-blue-600 shadow'
+                                            : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                                    ].join(' ')}
+                                >
+                                    {c}
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                <div className="flex justify-between items-center">
-                    <button 
-                        onClick={() => setIsModalOpen(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
-                    >
-                        Add New Law
-                    </button>
+                <div className="flex justify-end items-center">
                     <div className="text-sm text-gray-500">
-                        {loading ? 'Loading…' : `${totalLaws} total law(s), showing ${laws.length} on page ${currentPage}`}
+                        {loading
+                          ? 'Loading…'
+                          : (!category
+                              ? 'Select a category to view laws.'
+                              : `${totalLaws} total law(s), showing ${laws.length} on page ${currentPage}`)}
                     </div>
                 </div>
 
                 <div className="overflow-x-auto">
-                    {loading ? (
+                    {!category ? (
+                        <div className="py-8 text-center text-gray-500">Select a category to view laws.</div>
+                    ) : loading ? (
                         <div className="py-8 text-center text-gray-500">Loading...</div>
                     ) : laws.length === 0 ? (
-                        <div className="py-8 text-center text-gray-500">No laws found.</div>
+                        <div className="py-8 text-center text-gray-500">No laws found in this category.</div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {laws.map((law) => (

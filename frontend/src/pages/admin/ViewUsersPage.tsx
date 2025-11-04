@@ -19,14 +19,16 @@ const ViewUsersPage: React.FC = () => {
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
   const [isFiltering, setIsFiltering] = React.useState(false);
+  const [sort, setSort] = React.useState<'asc' | 'desc'>('asc'); // order of registration: oldest first
 
   const fetchUsers = async () => {
     try {
       setIsFiltering(true);
       setError(null);
-      const params = new URLSearchParams();
+  const params = new URLSearchParams();
       if (search.trim()) params.append('search', search.trim());
       if (role) params.append('role', role);
+  if (sort) params.append('sort', sort);
       const qs = params.toString();
 
       const res = await fetch(`/api/admin/users${qs ? `?${qs}` : ''}`, {
@@ -51,7 +53,10 @@ const ViewUsersPage: React.FC = () => {
       try {
         setLoading(true);
         setError(null);
-        const res = await fetch('/api/admin/users', {
+        const params = new URLSearchParams();
+        if (sort) params.append('sort', sort);
+        const qs = params.toString();
+        const res = await fetch(`/api/admin/users${qs ? `?${qs}` : ''}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (!res.ok) throw new Error(await res.text());
@@ -98,6 +103,15 @@ const ViewUsersPage: React.FC = () => {
             <option value="user">User</option>
             <option value="guest">Guest</option>
           </select>
+          <select
+            className="border rounded-md px-3 py-2 text-gray-700"
+            value={sort}
+            onChange={e => setSort((e.target.value as 'asc' | 'desc'))}
+            title="Sort by registration date"
+          >
+            <option value="asc">Oldest first</option>
+            <option value="desc">Newest first</option>
+          </select>
           <button
             onClick={fetchUsers}
             disabled={isFiltering}
@@ -115,13 +129,12 @@ const ViewUsersPage: React.FC = () => {
                 <th className="py-2">Email</th>
                 <th className="py-2">Role</th>
                 <th className="py-2">Joined Date</th>
-                <th className="py-2">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {(!loading && users.length === 0) && (
                 <tr>
-                  <td colSpan={5} className="py-6 text-center text-gray-500">No users found.</td>
+                  <td colSpan={4} className="py-6 text-center text-gray-500">No users found.</td>
                 </tr>
               )}
               {users.map((x) => (
@@ -132,9 +145,6 @@ const ViewUsersPage: React.FC = () => {
                     <span className={`px-2 py-1 text-xs rounded-full ${x.role==='admin'?'bg-purple-50 text-purple-700': x.role==='guest'?'bg-amber-50 text-amber-700':'bg-emerald-50 text-emerald-700'}`}>{x.role}</span>
                   </td>
                   <td className="py-3">{formatDate(x.createdAt)}</td>
-                  <td className="py-3">
-                    <button className="px-3 py-1.5 text-sm bg-gray-50 text-gray-700 rounded">View History</button>
-                  </td>
                 </tr>
               ))}
             </tbody>

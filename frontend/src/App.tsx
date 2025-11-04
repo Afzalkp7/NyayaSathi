@@ -7,6 +7,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext'; // Wraps the app
 import ProtectedRoute from './components/ProtectedRoute'; // Protects routes
 import Header from './components/Header'; // Your existing Header
+import BottomNav from './components/BottomNav';
 import ChatModal from './components/ChatModal'; // Your existing ChatModal
 
 // Import your page components
@@ -24,7 +25,7 @@ import AdminLayout from './pages/admin/AdminLayout';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import ManageLawsPage from './pages/admin/ManageLawsPage';
 import ViewUsersPage from './pages/admin/ViewUsersPage';
-import FlaggedQueriesPage from './pages/admin/FlaggedQueriesPage';
+// FlaggedQueriesPage removed
 
 const App: React.FC = () => {
     return (
@@ -42,6 +43,8 @@ const AppContent: React.FC = () => {
     
     // Check if we're on an admin route
     const isAdminRoute = location.pathname.startsWith('/admin');
+    const hideChromeRoutes = ['/login', '/signup'];
+    const showBottomNav = !isAdminRoute && !hideChromeRoutes.includes(location.pathname);
 
     return (
         <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -66,7 +69,7 @@ const AppContent: React.FC = () => {
                         <Route path="dashboard" element={<AdminDashboard />} />
                         <Route path="manage-laws" element={<ManageLawsPage />} />
                         <Route path="users" element={<ViewUsersPage />} />
-                        <Route path="flagged" element={<FlaggedQueriesPage />} />
+                        {/** flagged route removed */}
                         <Route index element={<Navigate to="/admin/dashboard" replace />} />
                     </Route>
 
@@ -80,7 +83,7 @@ const AppContent: React.FC = () => {
                 </Routes>
             ) : (
                 // Regular routes render with main wrapper
-                <main className="flex-grow max-w-7xl w-full mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <main className={`flex-grow max-w-7xl w-full mx-auto py-6 px-4 sm:px-6 lg:px-8 ${showBottomNav ? 'pb-24' : ''}`}>
                     <Routes>
                         <Route path="/login" element={<LoginPage />} />
                         <Route path="/signup" element={<SignupPage />} />
@@ -96,7 +99,7 @@ const AppContent: React.FC = () => {
                             <Route path="dashboard" element={<AdminDashboard />} />
                             <Route path="manage-laws" element={<ManageLawsPage />} />
                             <Route path="users" element={<ViewUsersPage />} />
-                            <Route path="flagged" element={<FlaggedQueriesPage />} />
+                            {/** flagged route removed */}
                             <Route index element={<Navigate to="/admin/dashboard" replace />} />
                         </Route>
 
@@ -115,6 +118,8 @@ const AppContent: React.FC = () => {
                 isOpen={isChatModalOpen}
                 onClose={() => setChatModalOpen(false)}
             />
+
+            {showBottomNav && <BottomNav />}
         </div>
     );
 };
